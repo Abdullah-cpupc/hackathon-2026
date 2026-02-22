@@ -1,0 +1,51 @@
+# Docker Compose for AI Chat Backend
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: ai_chat_db
+    environment:
+      POSTGRES_DB: ai_chat_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Application
+  app:
+    build: .
+    container_name: ai_chat_backend
+    ipc: host
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ai_chat_db
+      SECRET_KEY: your-secret-key-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      ENVIRONMENT: production
+      GEMINI_API_KEY: AIzaSyCr23TOCxVr61nTaOEczHcme6_B9-uSsBw
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # For development hot-reload
+      - uploads_data:/app/uploads  # For file uploads persistence
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+  uploads_data:
